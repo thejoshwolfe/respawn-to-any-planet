@@ -1,0 +1,10 @@
+{
+    "name": "respawn-to-any-planet",
+    "version": "0.0.0",
+    "title": "Respawn to Any Planet",
+    "author": "Josh Wolfe",
+    "homepage": "https://github.com/thejoshwolfe/respawn-to-any-planet",
+    "description": "Transport your character to any previously visited planet via death and respawn.",
+    "factorio_version": "2.0",
+    "dependencies": ["space-age"]
+}
