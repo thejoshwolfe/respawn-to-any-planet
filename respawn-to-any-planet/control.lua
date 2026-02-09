@@ -1,67 +1,136 @@
-local mod_gui = require("mod-gui")
-
 -- Thanks to https://github.com/jonas205/respawn-button for inspiring this code.
-
-local GUI_FLOW = "respawn-to-any-planet:flow"
-local BUTTON_PREFIX = "respawn-to:"
-
-local function get_re_flow(player)
-    local button_flow = mod_gui.get_button_flow(player)
-    local flow = button_flow.re_flow
-    if not flow then
-        flow = button_flow.add {
-            type = "flow",
-            name = "re_flow",
-            direction = "horizontal"
-        }
-    end
-    return flow
-end
-
-local function add_top_button(player)
-    if player.gui.top.re_flow then player.gui.top.re_flow.destroy() end
-    local flow = get_re_flow(player)
-
-    local button_name = BUTTON_PREFIX .. "nauvis"
-    if flow[button_name] then flow[button_name].destroy() end
-    flow.add {
-        type = "sprite-button",
-        name = button_name,
-        sprite = "space-location/nauvis",
-        style = mod_gui.button_style,
-    }
-end
-
-
-script.on_init(function()
-    for _, player in pairs(game.players) do
-        add_top_button(player)
-    end
-end)
-
-script.on_event(defines.events.on_player_created, function(event)
-    local player = game.players[event.player_index]
-    add_top_button(player)
-end)
 
 local function respawn_to(player, planet_name)
     local character = player.character
-    if character == nil then
-        player.print("No character found. already dead??")
-        return
+    if character ~= nil then
+        -- The character is alive.
+        character.die()
     end
 
-    character.die()
-    player.teleport({0, 0}, planet_name)
+    local respawn_position = player.force.get_spawn_position(planet_name)
+    player.teleport(respawn_position, planet_name)
     if player.mod_settings["respawn-to-any-planet_skip-countdown"].value then
         player.ticks_to_respawn = nil
     end
 end
 
+
+local function get_planet_names(player)
+    local planet_names = {}
+    for _, surface in pairs(game.surfaces) do
+        if
+            -- Only actual planets, not space platforms (or surfaces created in editor without an associated planet)
+            surface.planet ~= nil and
+            -- You have to have landed on it so that it shows up in the remote view sidebar.
+            -- Dropping a cargo pod to the planet creates the surface, but doesn't unlock it until you put your boots on the ground.
+            player.force.is_space_location_unlocked(surface.name) and
+            -- Hiding surfaces is not used in vanilla, but could be used by mods perhaps.
+            -- This is a button for humans, so hiding a surface should hide it from the buttons too.
+            not player.force.get_surface_hidden(surface.name)
+        then
+            table.insert(planet_names, surface.name)
+        end
+    end
+    return planet_names
+end
+
+local ROOT_GUI_NAME = "respawn-to-any-planet:flow"
+local BUTTON_PREFIX = "respawn-to:"
+
+local function update_buttons_for_player(player)
+    local planet_names = get_planet_names(player)
+    local should_show = player.mod_settings["respawn-to-any-planet_show-buttons"].value and (
+        #planet_names > 1 or
+        player.mod_settings["respawn-to-any-planet_show-just-one"].value
+    )
+    if should_show then
+        game.print("let's show it")
+    else
+        game.print("no show")
+    end
+
+
+    local parent = player.gui.top
+    local root_gui = parent[ROOT_GUI_NAME]
+    local button_tray = nil
+
+    if should_show and root_gui == nil then
+        root_gui = parent.add {
+            type = "frame",
+            name = ROOT_GUI_NAME,
+            direction = "horizontal",
+            style = "slot_window_frame",
+        }
+        local deep_frame = root_gui.add {
+            type = "frame",
+            name = "the-deep-frame",
+            style = "mod_gui_inside_deep_frame", -- no idea what this means.
+        }
+        button_tray = deep_frame.add {
+            type = "flow",
+            name = "the-button-tray",
+            direction = "vertical",
+        }
+        button_tray.add {
+            type = "label",
+            caption = "[virtual-signal=signal-skull][virtual-signal=right-arrow]",
+            tooltip = {"respawn-to-heading"},
+        }
+    elseif should_show and root_gui ~= nil then
+        button_tray = root_gui["the-deep-frame"]["the-button-tray"]
+    elseif not should_show and root_gui ~= nil then
+        -- Probably caused by toggling a setting.
+        root_gui.destroy()
+        return
+    else
+        -- Already not showing
+        return
+    end
+
+    for _, planet_name in pairs(planet_names) do
+        local button_name = BUTTON_PREFIX .. planet_name
+        if button_tray[button_name] then button_tray[button_name].destroy() end
+        button_tray.add {
+            type = "sprite-button",
+            name = button_name,
+            sprite = "space-location/" .. planet_name,
+            --caption = "[planet=" .. planet_name .. "]",
+            tooltip = {"respawn-to", "[planet=" .. planet_name .. "]", {"space-location-name." .. planet_name}},
+            style = "mod_gui_button", -- no idea what this means.
+        }
+    end
+end
+local function update_buttons()
+    if game == nil then return end
+    for _, player in pairs(game.players) do
+        update_buttons_for_player(player)
+    end
+end
+
 script.on_event(defines.events.on_gui_click, function(event)
-    local button_name = BUTTON_PREFIX .. "nauvis"
-    if event.element.name == button_name then
+    -- example "respawn-to:nauvis"
+    if string.sub(event.element.name, 1, string.len(BUTTON_PREFIX)) == BUTTON_PREFIX then
+        local planet_name = string.sub(event.element.name, 1 + string.len(BUTTON_PREFIX))
         local player = game.players[event.player_index]
-        respawn_to(player, "nauvis")
+        respawn_to(player, planet_name)
     end
 end)
+
+-- A player starts a new game, joins a server, loads a save, etc.
+script.on_event(defines.events.on_player_created, function(event)
+    local player = game.players[event.player_index]
+    update_buttons_for_player(player)
+end)
+
+-- There's no event for is_space_location_unlocked changing,
+-- but this is an ok proxy:
+script.on_event(defines.events.on_player_changed_surface,  update_buttons)
+
+-- These are needed when someone is fiddling with surfaces in editor mode:
+script.on_event(defines.events.on_surface_created,  update_buttons)
+script.on_event(defines.events.on_surface_deleted,  update_buttons)
+script.on_event(defines.events.on_surface_imported, update_buttons)
+script.on_event(defines.events.on_surface_renamed,  update_buttons)
+
+-- Toggling settings triggers this:
+script.on_event(defines.events.on_runtime_mod_setting_changed, update_buttons)
