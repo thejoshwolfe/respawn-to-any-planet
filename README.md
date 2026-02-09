@@ -4,6 +4,8 @@ A mod for Factorio: Space Age that transports your character to any previously v
 
 You bring no inventory through death/respawn, not even your armor and weapons.
 There is an option to remove the countdown after dying to respawn instantly when using this mod's buttons.
+This option also deletes your inventory after respawning, so you do not get the default freeplay pistol and 10 ammo.
+If you really want those 10 ammo, you have to wait for the countdown I guess.
 
 Possible uses for this mod:
 * You rush to Fulgora and realize you're ill prepared. Warp back to Nauvis to build a better ship and try again without reloading any saves.

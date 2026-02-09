@@ -64,6 +64,14 @@ local function respawn_to(player, planet_name)
     player.teleport(respawn_position, planet_name)
     if player.mod_settings["respawn-to-any-planet_skip-countdown"].value then
         player.ticks_to_respawn = nil
+        character = player.character
+        -- For balance/annoyance reasons, spamming the respawn button should not fill your inventory with pistols (and ammo).
+        for i = 1, character.get_max_inventory_index() do
+            local inventory = character.get_inventory(i)
+            if inventory ~= nil then
+                inventory.clear()
+            end
+        end
     end
 end
 
