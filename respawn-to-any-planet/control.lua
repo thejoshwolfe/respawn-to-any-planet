@@ -2,28 +2,54 @@
 -- REMOTE INTERFACE --
 ----------------------
 
-local EVENT_LISTENERS = {
-    pre_die = {},
-    post_die = {},
-}
+local function clear_event_listeners()
+    storage.event_listeners = {
+        pre_die = {},
+        post_die = {},
+    }
+end
 remote.add_interface("respawn-to-any-planet", {
+    -- Call the functions in this interface to register your callback at these times:
+    --  * on_init in your mod
+    --  * on_configuration_changed in your mod
+    -- The registration data is persisted in the save file (and thereby downloaded by multiplayer joins),
+    -- so do not call these functions in on_load.
+    -- The registration data is wiped on_configuration_changed, so you need to re-register during that mod-wide event.
+    -- Your info.json must declare a (potentially optional) dependency on this mod to ensure your mod's on_configuration_changed is called after this one.
     on_pre_die = function(interface_name, function_name) -- function will be called with a single argument: player_index
-        table.insert(EVENT_LISTENERS.pre_die, {interface_name, function_name})
+        table.insert(storage.event_listeners.pre_die, {interface_name, function_name})
     end,
     on_post_die = function(interface_name, function_name) -- function will be called with a single argument: player_index
-        table.insert(EVENT_LISTENERS.post_die, {interface_name, function_name})
+        table.insert(storage.event_listeners.post_die, {interface_name, function_name})
     end,
 })
 local function call_hook(hook_name, player_index)
-    for _, info in pairs(EVENT_LISTENERS[hook_name]) do
+    for _, info in pairs(storage.event_listeners[hook_name]) do
         local interface_name, function_name = unpack(info)
         remote.call(interface_name, function_name, player_index)
     end
 end
 
---------------------------
--- PRIMARY FUNCTIONALIY --
---------------------------
+---------------
+-- LIFECYCLE --
+---------------
+
+script.on_init(function()
+    -- Listeners start empty.
+    clear_event_listeners()
+end)
+script.on_load(function()
+    -- Listeners are restored. Don't change anything.
+end)
+script.on_configuration_changed(function()
+    -- Listeners must be re-registered.
+    -- This is to allow a mod to be uninstalled and its registered listeners go away.
+    clear_event_listeners()
+end)
+
+---------------------------
+-- PRIMARY FUNCTIONALITY --
+---------------------------
 
 local function respawn_to(player, planet_name)
     local character = player.character
@@ -142,14 +168,14 @@ script.on_event(defines.events.on_gui_click, function(event)
     end
 end)
 
--- A player starts a new game, joins a server, loads a save, etc.
+-- A player starts a new game, joins a server, loads a save, etc. (I think)
 script.on_event(defines.events.on_player_created, function(event)
     local player = game.players[event.player_index]
     update_buttons_for_player(player)
 end)
 
 -- There's no event for is_space_location_unlocked changing,
--- but this is an ok proxy:
+-- but this is an ok proxy (untested):
 script.on_event(defines.events.on_player_changed_surface,  update_buttons)
 
 -- These are needed when someone is fiddling with surfaces in editor mode:

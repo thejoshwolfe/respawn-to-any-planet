@@ -10,3 +10,14 @@ Possible uses for this mod:
 * Your Gleba factory collapses for mysterious spoilage-related reasons and you want to pop over to manually debug.
 * You spell "HELP" with concrete on Aquilo as your ship is pummelled to bits by large asteroids.
 * You're playing an Archipelago randomizer, and the unlocks for Gleba, Vulcanus, and Fulgora machines trickle in in random order.
+
+⚠️ THERE IS NO CONFIRMATION WHEN CLICKING A BUTTON TO DIE ⚠️.
+If you know how to make a confirmation dialog in a Factorio mod, please open a PR.
+The best I could do is add a setting to hide all the buttons until you're ready to click one.
+Escape | Settings | Mod settings | Per player | Respawn to any Planet | Show buttons for this mod.
+
+### Remote API
+
+This mod exposes hooks for other mods to install callbacks that fire before and after a character dies due to this mod's buttons.
+This may be useful to understand why a character died.
+For example, an Archipelago mod might disable Death Link for this case.
