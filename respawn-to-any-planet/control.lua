@@ -1,10 +1,37 @@
--- Thanks to https://github.com/jonas205/respawn-button for inspiring this code.
+----------------------
+-- REMOTE INTERFACE --
+----------------------
+
+local EVENT_LISTENERS = {
+    pre_die = {},
+    post_die = {},
+}
+remote.add_interface("respawn-to-any-planet", {
+    on_pre_die = function(interface_name, function_name) -- function will be called with a single argument: player_index
+        table.insert(EVENT_LISTENERS.pre_die, {interface_name, function_name})
+    end,
+    on_post_die = function(interface_name, function_name) -- function will be called with a single argument: player_index
+        table.insert(EVENT_LISTENERS.post_die, {interface_name, function_name})
+    end,
+})
+local function call_hook(hook_name, player_index)
+    for _, info in pairs(EVENT_LISTENERS[hook_name]) do
+        local interface_name, function_name = unpack(info)
+        remote.call(interface_name, function_name, player_index)
+    end
+end
+
+--------------------------
+-- PRIMARY FUNCTIONALIY --
+--------------------------
 
 local function respawn_to(player, planet_name)
     local character = player.character
     if character ~= nil then
         -- The character is alive.
+        call_hook("pre_die", player.index)
         character.die()
+        call_hook("post_die", player.index)
     end
 
     local respawn_position = player.force.get_spawn_position(planet_name)
@@ -14,8 +41,7 @@ local function respawn_to(player, planet_name)
     end
 end
 
-
-local function get_planet_names(player)
+local function get_unlocked_planet_names(player)
     local planet_names = {}
     for _, surface in pairs(game.surfaces) do
         if
@@ -34,22 +60,22 @@ local function get_planet_names(player)
     return planet_names
 end
 
-local ROOT_GUI_NAME = "respawn-to-any-planet:flow"
+---------
+-- GUI --
+---------
+
 local BUTTON_PREFIX = "respawn-to:"
 
 local function update_buttons_for_player(player)
-    local planet_names = get_planet_names(player)
+    -- Thanks to https://github.com/jonas205/respawn-button for inspiring this code.
+
+    local planet_names = get_unlocked_planet_names(player)
     local should_show = player.mod_settings["respawn-to-any-planet_show-buttons"].value and (
         #planet_names > 1 or
         player.mod_settings["respawn-to-any-planet_show-just-one"].value
     )
-    if should_show then
-        game.print("let's show it")
-    else
-        game.print("no show")
-    end
 
-
+    local ROOT_GUI_NAME = "respawn-to-any-planet:flow"
     local parent = player.gui.top
     local root_gui = parent[ROOT_GUI_NAME]
     local button_tray = nil
