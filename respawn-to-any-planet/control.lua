@@ -81,14 +81,23 @@ local function get_unlocked_planet_names(player)
         if
             -- Only actual planets, not space platforms (or surfaces created in editor without an associated planet)
             surface.planet ~= nil and
-            -- You have to have landed on it so that it shows up in the remote view sidebar.
-            -- Dropping a cargo pod to the planet creates the surface, but doesn't unlock it until you put your boots on the ground.
+            -- The planet shows up in the remote view sidebar.
             player.force.is_space_location_unlocked(surface.name) and
+            -- Dropping a cargo pod to the surface isn't enough.
+            -- You gotta put your boots on the ground so that the terrain shows up on the map.
+            player.force.is_chunk_charted(surface.name, {0, 0}) and
             -- Hiding surfaces is not used in vanilla, but could be used by mods perhaps.
-            -- This is a button for humans, so hiding a surface should hide it from the buttons too.
+            -- We're making a button for humans, so hiding a surface should hide it from the buttons too I guess.
             not player.force.get_surface_hidden(surface.name)
         then
             table.insert(planet_names, surface.name)
+        --else
+        --    game.print("not eligible: "
+        --        .. tostring(surface.name): .. ", "
+        --        .. tostring(surface.planet ~= nil) .. ", "
+        --        .. tostring(player.force.is_space_location_unlocked(surface.name)) .. ", "
+        --        .. tostring(player.force.is_chunk_charted(surface.name, {0, 0})) .. ", "
+        --        .. tostring(not player.force.get_surface_hidden(surface.name)))
         end
     end
     return planet_names
@@ -105,8 +114,8 @@ local function update_buttons_for_player(player)
 
     local planet_names = get_unlocked_planet_names(player)
     local should_show = player.mod_settings["respawn-to-any-planet_show-buttons"].value and (
-        #planet_names > 1 or
-        player.mod_settings["respawn-to-any-planet_show-just-one"].value
+        #planet_names >= 2 or
+        (#planet_names >= 1 and player.mod_settings["respawn-to-any-planet_show-just-one"].value)
     )
 
     local ROOT_GUI_NAME = "respawn-to-any-planet:flow"
@@ -182,9 +191,11 @@ script.on_event(defines.events.on_player_created, function(event)
     update_buttons_for_player(player)
 end)
 
--- There's no event for is_space_location_unlocked changing,
--- but this is an ok proxy (untested):
-script.on_event(defines.events.on_player_changed_surface,  update_buttons)
+script.on_event(defines.events.on_chunk_charted, function(event)
+    if event.position.x == 0 and event.position.y == 0 then
+        update_buttons()
+    end
+end)
 
 -- These are needed when someone is fiddling with surfaces in editor mode:
 script.on_event(defines.events.on_surface_created,  update_buttons)
