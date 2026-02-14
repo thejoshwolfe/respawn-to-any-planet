@@ -30,23 +30,6 @@ local function call_hook(hook_name, player_index)
     end
 end
 
----------------
--- LIFECYCLE --
----------------
-
-script.on_init(function()
-    -- Listeners start empty.
-    clear_event_listeners()
-end)
-script.on_load(function()
-    -- Listeners are restored. Don't change anything.
-end)
-script.on_configuration_changed(function()
-    -- Listeners must be re-registered.
-    -- This is to allow a mod to be uninstalled and its registered listeners go away.
-    clear_event_listeners()
-end)
-
 ---------------------------
 -- PRIMARY FUNCTIONALITY --
 ---------------------------
@@ -170,7 +153,6 @@ local function update_buttons_for_player(player)
     end
 end
 local function update_buttons()
-    if game == nil then return end
     for _, player in pairs(game.players) do
         update_buttons_for_player(player)
     end
@@ -185,7 +167,7 @@ script.on_event(defines.events.on_gui_click, function(event)
     end
 end)
 
--- A player starts a new game, joins a server, loads a save, etc. (I think)
+-- A player starts a new game or joins a server.
 script.on_event(defines.events.on_player_created, function(event)
     local player = game.players[event.player_index]
     update_buttons_for_player(player)
@@ -205,3 +187,23 @@ script.on_event(defines.events.on_surface_renamed,  update_buttons)
 
 -- Toggling settings triggers this:
 script.on_event(defines.events.on_runtime_mod_setting_changed, update_buttons)
+
+---------------
+-- LIFECYCLE --
+---------------
+
+script.on_init(function()
+    -- Listeners start empty.
+    clear_event_listeners()
+    -- Adding the mod to an existing save in single player needs this path.
+    update_buttons()
+end)
+script.on_load(function()
+    -- Listeners are restored from storage. Don't change anything.
+    -- The `game` global object is not available during this stage, so we cannot update_buttons().
+end)
+script.on_configuration_changed(function()
+    -- Listeners must be re-registered.
+    -- This is to allow a mod to be uninstalled and its registered listeners go away.
+    clear_event_listeners()
+end)

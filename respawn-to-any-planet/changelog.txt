@@ -1,4 +1,9 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.0.3
+Date: 15. 02. 2026
+  Bugfixes:
+    - Fixed buttons not showing up when adding mod to a single-player save that already landed on multiple planets.
+---------------------------------------------------------------------------------------------------
 Version: 0.0.2
 Date: 14. 02. 2026
   Bugfixes:
