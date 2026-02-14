@@ -1,0 +1,15 @@
+---------------------------------------------------------------------------------------------------
+Version: 0.0.2
+Date: 14. 02. 2026
+  Bugfixes:
+    - Fixed planets being unlocked by a ship reaching orbit rather than the character landing on the surface.
+---------------------------------------------------------------------------------------------------
+Version: 0.0.1
+Date: 09. 02. 2026
+  Bugfixes:
+    - Nothing changed. Just testing publishing/updating tooling.
+---------------------------------------------------------------------------------------------------
+Version: 0.0.0
+Date: 09. 02. 2026
+  Major Features:
+    - Initial release.
