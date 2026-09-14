@@ -2,11 +2,12 @@
 -- REMOTE INTERFACE --
 ----------------------
 
-local function clear_event_listeners()
+local function init_storage()
     storage.event_listeners = {
         pre_die = {},
         post_die = {},
     }
+    storage.custom_locations = {}
 end
 remote.add_interface("respawn-to-any-planet", {
     -- Call the functions in this interface to register your callback at these times:
@@ -21,6 +22,28 @@ remote.add_interface("respawn-to-any-planet", {
     end,
     on_post_die = function(interface_name, function_name) -- function will be called with a single argument: player_index
         table.insert(storage.event_listeners.post_die, {interface_name, function_name})
+    end,
+
+    -- For example, if a space platform is somewhere you want to be able to die and respawn to,
+    -- that has to be added as a custom location.
+    add_custom_location = function(
+        internal_name,
+
+        -- The sprite is a SpritePath: https://lua-api.factorio.com/latest/concepts/SpritePath.html
+        sprite,
+        -- The tooltip should be something like:
+        --   {"respawn-to", {"", "[planet=" .. planet_name .. "]", {"space-location-name." .. planet_name}}}
+        tooltip,
+
+        teleport_hook_interface_name, teleport_hook_function_name
+    )
+        assert(storage.custom_locations[internal_name] == nil, "custom location already added: " .. internal_name)
+        storage.custom_locations[internal_name] = {
+            sprite = sprite,
+            tooltip = tooltip,
+            teleport_hook_interface_name = teleport_hook_interface_name,
+            teleport_hook_function_name = teleport_hook_function_name,
+        }
     end,
 })
 local function call_hook(hook_name, player_index)
@@ -43,8 +66,19 @@ local function respawn_to(player, planet_name)
         call_hook("post_die", player.index)
     end
 
-    local respawn_position = player.force.get_spawn_position(planet_name)
-    player.teleport(respawn_position, planet_name)
+    if storage.custom_locations[planet_name] ~= nil then
+        -- Alright, you put the player there.
+        remote.call(
+            storage.custom_locations[planet_name].teleport_hook_interface_name,
+            storage.custom_locations[planet_name].teleport_hook_function_name,
+            player.index
+        )
+    else
+        -- Respawn to a regular planet.
+        local respawn_position = player.force.get_spawn_position(planet_name)
+        player.teleport(respawn_position, planet_name)
+    end
+
     if player.mod_settings["respawn-to-any-planet_skip-countdown"].value then
         player.ticks_to_respawn = nil
         character = player.character
@@ -60,6 +94,9 @@ end
 
 local function get_unlocked_planet_names(player)
     local planet_names = {}
+    for internal_name, _ in pairs(storage.custom_locations) do
+        table.insert(planet_names, internal_name)
+    end
     for _, surface in pairs(game.surfaces) do
         if
             -- Only actual planets, not space platforms (or surfaces created in editor without an associated planet)
@@ -142,12 +179,18 @@ local function update_buttons_for_player(player)
     for _, planet_name in pairs(planet_names) do
         local button_name = BUTTON_PREFIX .. planet_name
         if button_tray[button_name] then button_tray[button_name].destroy() end
+        local sprite = "space-location/" .. planet_name
+        local tooltip = {"respawn-to", {"", "[planet=" .. planet_name .. "]", {"space-location-name." .. planet_name}}}
+        if storage.custom_locations[planet_name] ~= nil then
+            sprite = storage.custom_locations[planet_name].sprite
+            tooltip = storage.custom_locations[planet_name].tooltip
+        end
         button_tray.add {
             type = "sprite-button",
             name = button_name,
-            sprite = "space-location/" .. planet_name,
+            sprite = sprite,
             --caption = "[planet=" .. planet_name .. "]",
-            tooltip = {"respawn-to", "[planet=" .. planet_name .. "]", {"space-location-name." .. planet_name}},
+            tooltip = tooltip,
             style = "mod_gui_button", -- no idea what this means.
         }
     end
@@ -194,7 +237,7 @@ script.on_event(defines.events.on_runtime_mod_setting_changed, update_buttons)
 
 script.on_init(function()
     -- Listeners start empty.
-    clear_event_listeners()
+    init_storage()
     -- Adding the mod to an existing save in single player needs this path.
     update_buttons()
 end)
@@ -205,5 +248,5 @@ end)
 script.on_configuration_changed(function()
     -- Listeners must be re-registered.
     -- This is to allow a mod to be uninstalled and its registered listeners go away.
-    clear_event_listeners()
+    init_storage()
 end)

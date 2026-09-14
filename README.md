@@ -23,3 +23,5 @@ Escape | Settings | Mod settings | Per player | Respawn to any Planet | Show but
 This mod exposes hooks for other mods to install callbacks that fire before and after a character dies due to this mod's buttons.
 This may be useful to understand why a character died.
 For example, an Archipelago mod might disable Death Link for this case.
+
+This mod also exposes an API for defining custom locations to respawn to via death.
